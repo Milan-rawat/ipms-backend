@@ -3,6 +3,7 @@ const { env, validateEnv } = require('./src/config/env');
 const { connectDB, disconnectDB } = require('./src/config/db');
 const { createRedisClient, connectRedis, disconnectRedis } = require('./src/config/redis');
 const { initializeSocket } = require('./src/sockets');
+const socketService = require('./src/services/socket.service');
 const app = require('./src/app');
 
 // --- Validate environment at startup ---
@@ -14,8 +15,8 @@ const server = http.createServer(app);
 // --- Initialize Socket.IO ---
 const io = initializeSocket(server);
 
-// Make io accessible to services (via app)
-app.set('io', io);
+// Wire socket service with the io instance
+socketService.setIO(io);
 
 // --- Start server ---
 async function start() {
@@ -25,7 +26,16 @@ async function start() {
 
     // Connect to Redis (non-blocking — app works without it in single instance)
     createRedisClient();
-    await connectRedis();
+    const redisClient = await connectRedis();
+
+    // Attach Redis adapter to Socket.IO if Redis connected
+    if (redisClient) {
+      const { createAdapter } = require('@socket.io/redis-adapter');
+      const subClient = redisClient.duplicate();
+      await subClient.connect();
+      io.adapter(createAdapter(redisClient, subClient));
+      console.log('[Socket.IO] Redis adapter attached');
+    }
 
     // Start HTTP server
     server.listen(env.port, () => {

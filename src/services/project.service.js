@@ -1,6 +1,7 @@
 const Project = require('../models/project.model');
 const User = require('../models/user.model');
 const ApiError = require('../utils/ApiError');
+const socketService = require('./socket.service');
 
 /**
  * Create a new project. The authenticated user becomes owner and admin member.
@@ -99,6 +100,13 @@ async function addMember(project, email) {
   project.members.push({ user: user._id, role: 'member' });
   await project.save();
 
+  // Emit after successful persistence
+  socketService.emitMemberAdded(project._id.toString(), {
+    _id: user._id,
+    name: user.name,
+    email: user.email,
+  });
+
   return Project.findById(project._id)
     .populate('owner', 'name email')
     .populate('members.user', 'name email');
@@ -125,6 +133,9 @@ async function removeMember(project, userId) {
     (m) => m.user.toString() !== userId.toString(),
   );
   await project.save();
+
+  // Emit after successful persistence + remove user's sockets from room
+  await socketService.emitMemberRemoved(project._id.toString(), userId);
 
   return Project.findById(project._id)
     .populate('owner', 'name email')

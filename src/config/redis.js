@@ -5,11 +5,10 @@ let redisClient = null;
 
 /**
  * Create and connect Redis client.
- * Used exclusively as Socket.IO pub/sub adapter.
+ * Used as the pub client for Socket.IO Redis adapter.
  */
 function createRedisClient() {
   if (env.isTest) {
-    // Skip Redis in test environment
     console.log('[Redis] Skipped in test environment');
     return null;
   }
@@ -19,7 +18,7 @@ function createRedisClient() {
     retryStrategy(times) {
       if (times > 5) {
         console.error('[Redis] Max retries reached. Giving up.');
-        return null; // Stop retrying
+        return null;
       }
       const delay = Math.min(times * 200, 2000);
       return delay;
@@ -41,6 +40,7 @@ function createRedisClient() {
 /**
  * Connect Redis client.
  * Non-blocking — the app can start without Redis (single instance still works).
+ * @returns {Redis|null} Connected client or null
  */
 async function connectRedis() {
   if (!redisClient) return null;
@@ -69,6 +69,10 @@ async function disconnectRedis() {
   }
 }
 
+/**
+ * Get the Redis client instance.
+ * @returns {Redis|null}
+ */
 function getRedisClient() {
   return redisClient;
 }
