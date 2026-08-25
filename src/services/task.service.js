@@ -3,6 +3,7 @@ const Project = require('../models/project.model');
 const User = require('../models/user.model');
 const ApiError = require('../utils/ApiError');
 const mongoose = require('mongoose');
+const socketService = require('./socket.service');
 
 /**
  * Create a new task within a project.
@@ -29,9 +30,14 @@ async function createTask(data, projectId, userId) {
     createdBy: userId,
   });
 
-  return Task.findById(task._id)
+  const populatedTask = await Task.findById(task._id)
     .populate('assignee', 'name email')
     .populate('createdBy', 'name email');
+
+  // Emit after successful persistence
+  socketService.emitTaskCreated(projectId, populatedTask);
+
+  return populatedTask;
 }
 
 /**
@@ -114,9 +120,14 @@ async function updateTask(taskId, projectId, data) {
 
   await task.save();
 
-  return Task.findById(task._id)
+  const populatedTask = await Task.findById(task._id)
     .populate('assignee', 'name email')
     .populate('createdBy', 'name email');
+
+  // Emit after successful persistence
+  socketService.emitTaskUpdated(projectId, populatedTask);
+
+  return populatedTask;
 }
 
 /**
@@ -148,6 +159,9 @@ async function deleteTask(taskId, projectId, userId, isAdmin) {
   }
 
   await Task.findByIdAndDelete(taskId);
+
+  // Emit after successful deletion
+  socketService.emitTaskDeleted(projectId, taskId);
 }
 
 /**
