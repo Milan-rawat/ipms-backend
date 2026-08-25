@@ -64,14 +64,16 @@ async function updateProject(project, { name, description }) {
 
 /**
  * Delete a project and its associated tasks.
- * Tasks deletion is handled here when Task model is available (Phase 2D).
+ * Sequential deletion: tasks first, then project.
  * @param {Object} project - Mongoose project document (from middleware)
  */
 async function deleteProject(project) {
-  // Phase 2D: Delete associated tasks
-  // const Task = require('../models/task.model');
-  // await Task.deleteMany({ project: project._id });
+  const Task = require('../models/task.model');
 
+  // Delete all tasks belonging to this project
+  await Task.deleteMany({ project: project._id });
+
+  // Delete the project
   await Project.findByIdAndDelete(project._id);
 }
 

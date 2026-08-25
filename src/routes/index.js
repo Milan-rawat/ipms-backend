@@ -22,5 +22,6 @@ router.get('/health', (req, res) => {
 // --- Feature Routes ---
 router.use('/auth', authRoutes);
 router.use('/projects', require('./project.routes'));
+router.use('/projects/:projectId/tasks', require('./task.routes'));
 
 module.exports = router;
