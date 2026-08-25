@@ -2,6 +2,7 @@ const Redis = require('ioredis');
 const { env } = require('./env');
 
 let redisClient = null;
+let redisAvailable = false;
 
 /**
  * Create and connect Redis client.
@@ -16,22 +17,30 @@ function createRedisClient() {
   redisClient = new Redis(env.redisUrl, {
     maxRetriesPerRequest: 3,
     retryStrategy(times) {
-      if (times > 5) {
-        console.error('[Redis] Max retries reached. Giving up.');
+      if (times > 3) {
+        // Stop retrying — server works without Redis in single-instance mode
         return null;
       }
-      const delay = Math.min(times * 200, 2000);
-      return delay;
+      return Math.min(times * 500, 2000);
     },
     lazyConnect: true,
   });
 
   redisClient.on('connect', () => {
+    redisAvailable = true;
     console.log('[Redis] Connected');
   });
 
   redisClient.on('error', (err) => {
-    console.error(`[Redis] Error: ${err.message}`);
+    // Only log meaningful errors (not empty messages from connection refusal)
+    if (err.message && !redisAvailable) return; // Suppress repetitive connection refused during startup
+    if (err.message) {
+      console.error(`[Redis] Error: ${err.message}`);
+    }
+  });
+
+  redisClient.on('close', () => {
+    redisAvailable = false;
   });
 
   return redisClient;
@@ -48,9 +57,15 @@ async function connectRedis() {
   try {
     await redisClient.connect();
     return redisClient;
-  } catch (error) {
-    console.error(`[Redis] Connection failed: ${error.message}`);
-    console.warn('[Redis] Continuing without Redis — real-time events limited to single instance');
+  } catch {
+    console.warn('[Redis] Not available — real-time events limited to single instance');
+    // Disconnect cleanly to stop retry attempts
+    try {
+      redisClient.disconnect();
+    } catch {
+      // Ignore disconnect errors during cleanup
+    }
+    redisClient = null;
     return null;
   }
 }
@@ -64,8 +79,8 @@ async function disconnectRedis() {
   try {
     await redisClient.quit();
     console.log('[Redis] Disconnected');
-  } catch (error) {
-    console.error(`[Redis] Disconnect error: ${error.message}`);
+  } catch {
+    // Ignore errors during shutdown
   }
 }
 
@@ -77,4 +92,12 @@ function getRedisClient() {
   return redisClient;
 }
 
-module.exports = { createRedisClient, connectRedis, disconnectRedis, getRedisClient };
+/**
+ * Check if Redis is currently available.
+ * @returns {boolean}
+ */
+function isRedisAvailable() {
+  return redisAvailable;
+}
+
+module.exports = { createRedisClient, connectRedis, disconnectRedis, getRedisClient, isRedisAvailable };
