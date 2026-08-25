@@ -32,7 +32,12 @@ async function start() {
     if (redisClient) {
       const { createAdapter } = require('@socket.io/redis-adapter');
       const subClient = redisClient.duplicate();
-      await subClient.connect();
+      // Wait for subscriber client to be ready
+      await new Promise((resolve, reject) => {
+        if (subClient.status === 'ready') return resolve();
+        subClient.once('ready', resolve);
+        subClient.once('error', reject);
+      });
       io.adapter(createAdapter(redisClient, subClient));
       console.log('[Socket.IO] Redis adapter attached');
     }
