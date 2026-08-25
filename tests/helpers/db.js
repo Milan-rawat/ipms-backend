@@ -5,14 +5,10 @@ let mongoServer;
 
 /**
  * Connect to in-memory MongoDB for testing.
- * Uses locally cached binary (7.0.14) to avoid large downloads.
+ * Uses default binary version — downloads automatically in CI.
  */
 async function connectTestDB() {
-  mongoServer = await MongoMemoryServer.create({
-    binary: {
-      version: '7.0.14',
-    },
-  });
+  mongoServer = await MongoMemoryServer.create();
   const uri = mongoServer.getUri();
   await mongoose.connect(uri);
 }
