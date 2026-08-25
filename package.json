@@ -32,11 +32,11 @@
     "joi": "^18.2.5",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.9.3",
-    "socket.io": "^4.8.3"
+    "socket.io": "^4.8.3",
+    "@socket.io/redis-adapter": "^8.3.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@socket.io/redis-adapter": "^8.3.0",
     "eslint": "^10.9.1",
     "jest": "^30.4.2",
     "mongodb-memory-server": "^11.2.0",
